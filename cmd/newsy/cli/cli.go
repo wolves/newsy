@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	// pubsub "github.com/wolves/newsy/pkg"
 )
 
 type App struct {
@@ -41,7 +40,7 @@ func (app *App) Main(ctx context.Context, pwd string, args []string) error {
 
 	return cmd.Main(ctx, pwd, args[1:])
 
-	// m := pubsub.NewManager()
+	// m := newsy.NewManager()
 	// fmt.Println("app.Main")
 	// fmt.Println("args:", args)
 	// fmt.Println("pwd:", pwd)

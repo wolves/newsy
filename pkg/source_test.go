@@ -1,4 +1,4 @@
-package pubsub
+package newsy
 
 import "testing"
 
@@ -13,7 +13,6 @@ func Test_Source(t *testing.T) {
 
 		// err := s.Report(t,a)
 		// assertNoErr(t, err)
-
 	})
 
 	t.Run("Schedule method", func(t *testing.T) {

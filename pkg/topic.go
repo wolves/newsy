@@ -1,4 +1,4 @@
-package pubsub
+package newsy
 
 // Category is a string that is used to define the category of an Article
 type Topic string

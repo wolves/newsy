@@ -1,4 +1,4 @@
-package pubsub
+package newsy
 
 // ErrInvalidSource is returned when the news `Source` is invalid due to an invalid attribute/field
 type ErrInvalidSource string

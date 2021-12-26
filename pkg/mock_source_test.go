@@ -1,1 +1,1 @@
-package pubsub
+package newsy
