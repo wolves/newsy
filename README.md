@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/wolves/gopherguides-intro-to-go/65f98967a8defd6984eef1e2919fa984bacd39ca/week09/logo.svg" /></p>
+<p align="center"><img src="https://raw.githubusercontent.com/wolves/newsy/main/logo.svg" /></p>
 
 # Newsy
 
