@@ -4,16 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
+	"sync"
 )
 
 type App struct {
 	IO
-	Commands map[string]Commander
-}
 
-type Commander interface {
-	Main(ctx context.Context, pwd string, args []string) error
+	cmds map[string]Commander
+	once sync.Once
 }
 
 func (app *App) Main(ctx context.Context, pwd string, args []string) error {
@@ -21,40 +19,75 @@ func (app *App) Main(ctx context.Context, pwd string, args []string) error {
 		return fmt.Errorf("app is nil")
 	}
 
-	if len(args) == 0 {
+	if len(args) == 0 || args[0] == "-h" {
 		return app.Usage(app.Stdout())
 	}
 
-	if app.Commands == nil {
-		app.Commands = map[string]Commander{
-			// "search": &SearchCmd{
-			// 	Name: "search",
-			// },
-		}
+	if err := app.init(); err != nil {
+		return err
 	}
 
-	cmd, ok := app.Commands[args[0]]
+	cmd, ok := app.cmds[args[0]]
 	if !ok {
 		return fmt.Errorf("command %q not found", args[0])
 	}
 
-	return cmd.Main(ctx, pwd, args[1:])
+	if ioCmd, ok := cmd.(IOCommander); ok {
+		ioCmd.SetIO(app.IO)
+	}
 
-	// m := newsy.NewManager()
-	// fmt.Println("app.Main")
-	// fmt.Println("args:", args)
-	// fmt.Println("pwd:", pwd)
-	// fmt.Printf("mgr: %+v", m)
+	fmt.Println("\n##############")
+	fmt.Println("args:", args)
+	fmt.Println("pwd:", pwd)
+	fmt.Printf("##############\n\n")
+	return cmd.Main(ctx, pwd, args[1:])
 }
 
 func (app *App) Usage(w io.Writer) error {
+	if err := app.init(); err != nil {
+		return err
+	}
+
 	fmt.Fprintln(w, "Usage: newsy <command> [options] [<args>...]")
 	fmt.Fprintln(w, "---------------")
-	// - list categories
+
+	for k, v := range app.cmds {
+		uc, ok := v.(UsageCommander)
+		if !ok {
+			fmt.Fprintf(w, "Undefined command: %s:\n", k)
+			continue
+		}
+
+		err := uc.Usage(app.Stdout())
+		if err != nil {
+			return nil
+		}
+
+		fmt.Fprintln(w)
+	}
+
+	// - list categories in backup
 	// - backup file location
 	// - # Articles in backup
 	// - # Articles / Topic
 	// - # Articles / Source
+
+	return nil
+}
+
+func (app *App) init() error {
+	if app == nil {
+		return fmt.Errorf("app is nil")
+	}
+	app.once.Do(func() {
+		if app.cmds == nil || len(app.cmds) == 0 {
+			app.cmds = map[string]Commander{
+				"clear":  &ClearCmd{},
+				"read":   &ReadCmd{},
+				"stream": &StreamCmd{},
+			}
+		}
+	})
 
 	return nil
 }
@@ -65,38 +98,6 @@ func (app *App) Usage(w io.Writer) error {
 // - # Articles in backup
 // - # Articles / Topic
 // - # Articles / Source
-
-type IO struct {
-	In  io.Reader
-	Out io.Writer
-	Err io.Writer
-}
-
-func (oi IO) Stdout() io.Writer {
-	if oi.Out == nil {
-		return os.Stdout
-	}
-
-	return oi.Out
-}
-
-func (oi IO) Stderr() io.Writer {
-	if oi.Err == nil {
-		return os.Stderr
-	}
-
-	return oi.Err
-}
-
-func (oi IO) Stdin() io.Reader {
-	if oi.In == nil {
-		return os.Stdin
-	}
-
-	return oi.In
-}
-
-// Stream Command
 
 // Read Command
 
