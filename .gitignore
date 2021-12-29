@@ -1,1 +1,4 @@
+.envrc
+.tool-versions
 newsy_backup.json
+newsy_db.json
