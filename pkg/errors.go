@@ -12,8 +12,8 @@ func (e ErrInvalidArticle) Error() string {
 	return string(e)
 }
 
-// ErrInvalidCategory is returned when a `Category` is created with an incorrect type
-type ErrInvalidCategory string
+// ErrInvalidCategory is returned when a `Topic` is created with an incorrect type
+type ErrInvalidTopic string
 
 // func (e ErrInvalidCategory) Error() string {}
 
