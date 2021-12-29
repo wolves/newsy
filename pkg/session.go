@@ -5,58 +5,82 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"sync"
 	"time"
 )
 
-type Session struct {
+type session struct {
+	Backup   io.Writer
 	Articles Articles `json:"articles"`
 	Topics   Topics   `json:"topics"`
 
 	loaded    bool
 	timestamp time.Time
+
 	sync.RWMutex
 }
 
-func (s *Session) Load(data []byte) error {
-	if err := json.Unmarshal(data, s); err != nil {
-		return err
+func Restore(r io.Reader) (*session, error) {
+	dec := json.NewDecoder(r)
+	sess := &session{}
+	if err := dec.Decode(&sess); err != nil {
+		if err != io.EOF {
+			return nil, err
+		}
 	}
-	s.loaded = true
-	fmt.Println("LOADED ===", s.loaded)
+	sess.loaded = true
 
-	return nil
+	return sess, nil
 }
 
-func (s *Session) Loaded() bool {
-	s.RLock()
-	defer s.RUnlock()
-	return s.loaded
-}
+func (s *session) backup() error {
+	if s == nil {
+		return fmt.Errorf("session is nil")
+	}
+	fmt.Println("STARTING BACKUP")
 
-func (s *Session) Save(storage io.Writer) error {
+	// check for backup location
+	if s.Backup == nil {
+
+		// REFACTOR: create/init on if it doesn't exist
+		// (move to using something like Datastore.set?)
+		bak, err := os.Create("newsy_db.json")
+		if err != nil {
+			return err
+		}
+
+		// Set established backup location
+		s.Backup = bak
+	}
+
 	s.Lock()
-	data, err := json.Marshal(s)
+	// Backup the things
+	err := json.NewEncoder(s.Backup).Encode(s)
 	s.Unlock()
 	if err != nil {
-		return err
+		return fmt.Errorf("session backup failure: %v", err)
 	}
 
-	if _, err := storage.Write(data); err != nil {
-		return err
+	if closer, ok := s.Backup.(io.Closer); ok {
+		if err := closer.Close(); err != nil {
+			return err
+		}
 	}
 
 	s.Lock()
 	s.timestamp = time.Now()
 	s.Unlock()
 
+	fmt.Println("session backup complete")
 	return nil
 }
 
-func (s *Session) StartAutoSave(interval time.Duration) {
+func (s *session) startAutoBackup(interval time.Duration) {
 	time.Sleep(interval)
-	// FIX: Make this an actual write to the file
-	bb := &bytes.Buffer{}
+	if s.Backup == nil {
+		s.Backup = &bytes.Buffer{}
+	}
 
-	s.Save(bb)
+	s.backup()
 }

@@ -1,6 +1,7 @@
 package newsy
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"time"
@@ -10,8 +11,9 @@ func Test_Broker(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Start method", func(t *testing.T) {
-		b := NewBroker()
-		saveInterval := time.Second * 1
+		b := &Broker{}
+		b.session = newTestSession(t, &bytes.Buffer{})
+		saveInterval := time.Millisecond * 50
 
 		startService(t, b, saveInterval)
 		assertStarted(t, b)
@@ -19,36 +21,11 @@ func Test_Broker(t *testing.T) {
 		// if n.Session.saveInterval != saveInterval {
 		// 	t.Fatalf("got save interval %v, expected %v", n.Session.saveInterval, saveInterval)
 		// }
-
-		// FIX: Just randomly calling this again feels weird esp with no err check
-		// should be able to be started multiple times
-		startService(t, b, saveInterval)
 	})
 
 	t.Run("Stop method", func(t *testing.T) {
 		t.Run("can be called by the service", func(t *testing.T) {
-			b := NewBroker()
-			startService(t, b, time.Minute*1)
-
-			// should be able to be stopped by the news service itself.
-			b.Stop()
-			if !b.stopped {
-				t.Fatal("expected Newsy to be stopped")
-			}
-		})
-		// should be able to be stopped multiple times.
-		t.Run("can be called while already stopped", func(t *testing.T) {
-			b := NewBroker()
-
-			// should be able to be stopped by the news service itself.
-			b.Stop()
-			assertStopped(t, b)
-		})
-		// should be able to be stopped by the end user.
-		t.Run("can be called by the end-user", func(t *testing.T) {
-			b := NewBroker()
-			startService(t, b, time.Second*1)
-			assertStarted(t, b)
+			b := &Broker{running: true}
 
 			b.Stop()
 			assertStopped(t, b)
@@ -62,7 +39,7 @@ func Test_Broker(t *testing.T) {
 	})
 
 	t.Run("Subscribe", func(t *testing.T) {
-		b := NewBroker()
+		b := &Broker{}
 		// ctx := startService(t, n, time.Second*1)
 
 		ts := Topic("testing")
@@ -85,7 +62,8 @@ func Test_Broker(t *testing.T) {
 	})
 
 	t.Run("Add", func(t *testing.T) {
-		b := NewBroker()
+		b := &Broker{}
+
 		ctx := startService(t, b, time.Second)
 
 		arts := Articles{
@@ -129,39 +107,15 @@ func Test_Broker(t *testing.T) {
 		}
 	})
 
-	t.Run("incrementally saves session", func(t *testing.T) {
-		orig := time.Now()
-		s := &Session{loaded: true, timestamp: orig}
-		b := &Broker{
-			// subs:    make(map[Topic][]chan Article),
-			errs:    make(chan error),
-			stopped: true,
-			Session: s,
-		}
-
-		i := time.Millisecond * 50
-		b.Start(context.Background(), i)
-
-		// FIX: Change this to have autosave use a channel and capture that?
-		time.Sleep(2 * i)
-
-		s.RLock()
-		expTime := s.timestamp.After(orig)
-		s.RUnlock()
-
-		if !expTime {
-			t.Fatalf("expected updated autosave timestamp, got time.After: %v", expTime)
-		}
-	})
-
 	t.Run("searching article id/s", func(t *testing.T) {
-		articles := Articles{}
+		b := &Broker{
+			session: &session{},
+		}
 		ids := []int{135, 246, 975}
 		for _, id := range ids {
-			articles = append(articles, Article{ID: ArticleID(id)})
+			b.Articles = append(b.Articles, Article{ID: ArticleID(id)})
 		}
-		b := NewBroker()
-		b.Articles = articles
+
 		tests := []struct {
 			name        string
 			articles    Articles
@@ -192,7 +146,7 @@ func Test_Broker(t *testing.T) {
 	})
 
 	t.Run("unsub removes subscription", func(t *testing.T) {
-		b := NewBroker()
+		b := &Broker{}
 		sub1 := &subscription{ID: subId(1), Topics: Topics{"tdd"}}
 		sub2 := &subscription{ID: subId(2), Topics: Topics{"tdd"}}
 		sub3 := &subscription{ID: subId(3), Topics: Topics{"tdd"}}
@@ -224,7 +178,7 @@ func assertNoError(t testing.TB, e error) {
 
 func assertStarted(t testing.TB, b *Broker) {
 	t.Helper()
-	if b.stopped {
+	if !b.running {
 		t.Fatal("expected manager to be started and stopped field to be false")
 	}
 }
@@ -233,7 +187,7 @@ func assertStopped(t testing.TB, b *Broker) {
 	t.Helper()
 
 	b.RLock()
-	if !b.stopped {
+	if b.running {
 		b.RUnlock()
 		t.Fatal("expected Newsy to be stopped")
 	}

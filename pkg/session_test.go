@@ -3,7 +3,18 @@ package newsy
 import (
 	"bytes"
 	"testing"
+	"time"
 )
+
+func newTestSession(t testing.TB, bak *bytes.Buffer) *session {
+	t.Helper()
+
+	return &session{
+		Backup:   bak,
+		Articles: Articles{},
+		Topics:   Topics{},
+	}
+}
 
 func Test_Session(t *testing.T) {
 	t.Parallel()
@@ -12,33 +23,30 @@ func Test_Session(t *testing.T) {
 	mockStoreJson := []byte(`{"topics":["testing","go"],"articles":[{"id": 135}]}`)
 
 	t.Run("loads state from backup file", func(t *testing.T) {
-		s := &Session{}
-
-		err := s.Load(mockStoreJson)
+		bb := bytes.NewBuffer(mockStoreJson)
+		sess, err := Restore(bb)
 		assertNoError(t, err)
 
-		if !s.Loaded() {
-			t.Fatalf("expected state to be loaded, got %v", s.loaded)
+		if !sess.loaded {
+			t.Fatalf("expected state to be loaded, got %v", sess.loaded)
 		}
 
-		gotTop := len(s.Topics)
+		gotTop := len(sess.Topics)
 		expTop := len(mockTopics)
 		assertLenMatch(t, gotTop, expTop)
 
-		gotArt := len(s.Articles)
+		gotArt := len(sess.Articles)
 		expArt := len(mockArticles)
 		assertLenMatch(t, gotArt, expArt)
 	})
 
 	t.Run("saves state to backup file", func(t *testing.T) {
-		s := &Session{
-			Topics:   mockTopics,
-			Articles: mockArticles,
-		}
-
 		bb := &bytes.Buffer{}
+		s := newTestSession(t, bb)
+		s.Topics = mockTopics
+		s.Articles = mockArticles
 
-		err := s.Save(bb)
+		err := s.backup()
 		if err != nil {
 			t.Fatalf("unexpected error while saving state: ERR %v", err)
 		}
@@ -48,6 +56,28 @@ func Test_Session(t *testing.T) {
 
 		if bytes.Contains(act, exp) {
 			t.Fatalf("got %v, expected %v", exp, act)
+		}
+	})
+
+	t.Run("session autobackup", func(t *testing.T) {
+		orig := time.Now()
+		bb := &bytes.Buffer{}
+		s := newTestSession(t, bb)
+		s.loaded = true
+		s.timestamp = orig
+		i := time.Millisecond * 50
+
+		s.startAutoBackup(i)
+
+		// FIX: Change this to have autosave use a channel and capture that?
+		time.Sleep(2 * i)
+
+		s.RLock()
+		expTime := s.timestamp.After(orig)
+		s.RUnlock()
+
+		if !expTime {
+			t.Fatalf("expected updated autosave timestamp, got time.After: %v", expTime)
 		}
 	})
 }
