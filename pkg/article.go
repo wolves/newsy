@@ -3,7 +3,6 @@ package newsy
 import (
 	"bytes"
 	"fmt"
-	"strings"
 )
 
 type ArticleID int
@@ -19,25 +18,26 @@ type Article struct {
 // Articles is a list of type Article
 type Articles []Article
 
-func (a Article) String() (string, error) {
-	if err := validateArticle(a); err != nil {
-		return "", err
-	}
+func (a Article) String() string {
+	// if err := validateArticle(a); err != nil {
+	// 	return ""
+	// }
 
 	id := a.ID
 	src := a.Source
 
 	bb := &bytes.Buffer{}
-	fmt.Fprintf(bb, "ID: %d\n", id)
+	fmt.Fprintf(bb, "[ID: %d]\n", id)
 	fmt.Fprintf(bb, "Title: %s\n", a.Title)
-	fmt.Fprintf(bb, "Topics:\n")
-	for _, t := range a.Topics {
-		fmt.Fprintf(bb, "\t- %s\n", t)
-	}
 	fmt.Fprintf(bb, "Source: %s\n", src)
+	fmt.Fprintf(bb, "Topics:")
+	for _, t := range a.Topics {
+		fmt.Fprintf(bb, " %s", t)
+	}
 
 	s := bb.String()
-	return strings.TrimSpace(s), nil
+	// return strings.TrimSpace(s)
+	return s
 }
 
 func validateArticle(a Article) error {

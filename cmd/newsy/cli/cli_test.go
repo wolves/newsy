@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -19,9 +20,13 @@ func Test_Cli(t *testing.T) {
 		err := app.Main(context.Background(), "test_pwd", args)
 		assertNoError(t, err)
 
-		act := bb.String()
-		exp := "Usage: newsy <command> [options] [<args>...]\n---------------\n"
-		assertStringEquality(t, act, exp)
+		act := bb.String()[0:5]
+
+		exp := "Usage"
+
+		if !strings.Contains(act, exp) {
+			t.Fatalf("expected: %v, got: %v", exp, act)
+		}
 	})
 
 	t.Run("sub-command routing", func(t *testing.T) {

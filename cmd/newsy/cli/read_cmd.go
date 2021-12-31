@@ -3,7 +3,11 @@ package cli
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
+	"os"
+
+	newsy "github.com/wolves/newsy/pkg"
 )
 
 var (
@@ -34,10 +38,10 @@ func (cmd *ReadCmd) Flags() *flag.FlagSet {
 	flags := flag.NewFlagSet("read", flag.ContinueOnError)
 	flags.BoolVar(&cmd.AsJSON, "j", false, "Prints the news stories in JSON format.")
 	flags.StringVar(&cmd.Backup, "f", "newsy_db.json", "Location of article archive/backup")
-	flags.StringVar(&cmd.Output, "o", "", "Specifies location for article output (Replaces command line output)")
+	flags.StringVar(&cmd.Output, "o", "", "Specifies location for command output (Replaces command line output)")
 
-	// o := cmd.Stdout()
-	flags.SetOutput(cmd.Stdout())
+	o := cmd.Stdout()
+	flags.SetOutput(o)
 
 	cmd.flags = flags
 
@@ -51,10 +55,30 @@ func (cmd *ReadCmd) Main(ctx context.Context, pwd string, args []string) error {
 	}
 	args = flags.Args()
 
-	if len(args) == 0 || args[0] == "-h" {
-		return cmd.Usage(cmd.Stdout())
+	if len(args) == 0 {
+		return fmt.Errorf("please provide 1 or more article ids")
 	}
-	return nil
+
+	// fmt.Printf("Args: %v", args)
+
+	f, err := os.Open(fmt.Sprintf("%s/%s", pwd, cmd.Backup))
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	sess, err := newsy.Restore(f)
+	if err != nil {
+		return err
+	}
+	// fmt.Printf("Session: %+v", sess)
+
+	for _, a := range sess.Articles {
+		fmt.Fprintf(cmd.Stdout(), "\n%s\n", a.String())
+		// _, err = io.Copy(cmd.Out, f)
+	}
+
+	return err
 }
 
 func (cmd *ReadCmd) Usage(w io.Writer) error {

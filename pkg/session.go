@@ -11,9 +11,9 @@ import (
 )
 
 type session struct {
-	Backup   io.Writer
-	Articles Articles `json:"articles"`
-	Topics   Topics   `json:"topics"`
+	Backup   io.Writer `json:"-"`
+	Articles Articles  `json:"articles"`
+	Topics   Topics    `json:"topics"`
 
 	loaded    bool
 	timestamp time.Time

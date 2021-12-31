@@ -196,7 +196,7 @@ func (b *Broker) Search(ids ...int) (Articles, error) {
 
 func (b *Broker) initSession() error {
 	// TODO: Add check for user defined file with default fallback
-	f, err := os.Open("newsy_backup.json")
+	f, err := os.Open("newsy_db.json")
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			b.session = &session{}
@@ -234,6 +234,7 @@ func (b *Broker) dispatch(a Article) {
 
 	b.Lock()
 	defer b.Unlock()
+	fmt.Printf("Article:\t%v", a)
 
 	for _, sub := range b.subs {
 		if !sub.Match(a) {
