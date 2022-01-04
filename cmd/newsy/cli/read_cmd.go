@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	newsy "github.com/wolves/newsy/pkg"
 )
@@ -59,25 +60,43 @@ func (cmd *ReadCmd) Main(ctx context.Context, pwd string, args []string) error {
 		return fmt.Errorf("please provide 1 or more article ids")
 	}
 
-	// fmt.Printf("Args: %v", args)
-
 	f, err := os.Open(fmt.Sprintf("%s/%s", pwd, cmd.Backup))
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	sess, err := newsy.Restore(f)
-	if err != nil {
+	if !cmd.AsJSON {
+		sess, err := newsy.Restore(f)
+		if err != nil {
+			return err
+		}
+		arts, err := fetchArticles(sess.Articles, args...)
+		var resp string
+		for _, a := range arts {
+			resp += fmt.Sprintf("\n%s\n", a.String())
+		}
+
+		if cmd.Output != "" {
+			fp := pwd + "/" + cmd.Output
+			f, err := os.OpenFile(fp, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+
+			if _, err := f.Write([]byte(resp)); err != nil {
+				return err
+			}
+		} else {
+			fmt.Fprintf(cmd.Stdout(), "%s", resp)
+		}
 		return err
 	}
-	// fmt.Printf("Session: %+v", sess)
 
-	for _, a := range sess.Articles {
-		fmt.Fprintf(cmd.Stdout(), "\n%s\n", a.String())
-		// _, err = io.Copy(cmd.Out, f)
+	if _, err = io.Copy(cmd.Stdout(), f); err != nil {
+		return err
 	}
-
 	return err
 }
 
@@ -87,4 +106,22 @@ func (cmd *ReadCmd) Usage(w io.Writer) error {
 	flags.Usage()
 
 	return nil
+}
+
+func fetchArticles(as newsy.Articles, args ...string) (newsy.Articles, error) {
+	matches := newsy.Articles{}
+
+	for _, sid := range args {
+		id, err := strconv.Atoi(sid)
+		if err != nil {
+			return nil, err
+		}
+		for _, a := range as {
+			if a.ID == newsy.ArticleID(id) {
+				matches = append(matches, a)
+			}
+		}
+	}
+
+	return matches, nil
 }
