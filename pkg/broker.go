@@ -178,22 +178,6 @@ func (b *Broker) Errors() chan error {
 	return b.errs
 }
 
-func (b *Broker) Search(ids ...int) (Articles, error) {
-	if b == nil {
-		return nil, fmt.Errorf("broker is nil")
-	}
-	res := Articles{}
-
-	for _, i := range ids {
-		for _, a := range b.Articles {
-			if ArticleID(i) == a.ID {
-				res = append(res, a)
-			}
-		}
-	}
-	return res, nil
-}
-
 func (b *Broker) initSession() error {
 	// TODO: Add check for user defined file with default fallback
 	f, err := os.Open("newsy_db.json")

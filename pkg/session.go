@@ -34,6 +34,22 @@ func Restore(r io.Reader) (*session, error) {
 	return sess, nil
 }
 
+func (b *Broker) Search(ids ...int) (Articles, error) {
+	if b == nil {
+		return nil, fmt.Errorf("broker is nil")
+	}
+	res := Articles{}
+
+	for _, i := range ids {
+		for _, a := range b.Articles {
+			if ArticleID(i) == a.ID {
+				res = append(res, a)
+			}
+		}
+	}
+	return res, nil
+}
+
 func (s *session) backup() error {
 	if s == nil {
 		return fmt.Errorf("session is nil")
